@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080b0a">
+<meta name="description" content="MONSTER DATABASE - モンスター図鑑">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>MONSTER DATABASE</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin:0; background:#080b0a; color:white; font-family:sans-serif; }
+header { padding:20px 16px; background:#080d0b; border-bottom:2px solid #00e6a0; }
+header h1 { margin:0; color:#00f0a5; font-size:23px; letter-spacing:2px; }
+header p { margin:6px 0 0; color:#779b8e; font-size:11px; letter-spacing:2px; }
+.search-area { padding:15px; }
+.search-area input { width:100%; padding:14px; background:#141b18; border:1px solid #087b59; border-radius:6px; color:white; font-size:15px; outline:none; }
+.search-area input:focus { border-color:#00f0a5; box-shadow:0 0 8px #00e6a044; }
+.count { color:#779b8e; font-size:12px; padding:0 16px 14px; }
+.grid { padding:0 12px 30px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.monster-card { background:#131a17; border:1px solid #263d33; border-radius:6px; overflow:hidden; cursor:pointer; min-width:0; transition:.15s; }
+.monster-card:active { transform:scale(.96); border-color:#00ffad; }
+.monster-card img { display:block; width:100%; aspect-ratio:1/1; object-fit:cover; background:#202925; }
+.image-placeholder { width:100%; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; color:#47685a; background:#202925; font-size:30px; }
+.monster-name { padding:9px 3px 5px; text-align:center; font-size:12px; overflow-wrap:anywhere; }
+.monster-number { color:#68877a; font-size:10px; text-align:center; padding-bottom:5px; }
+.type-small { color:#00d99a; font-size:10px; text-align:center; padding-bottom:9px; }
+#detail { display:none; padding:15px; animation:appear .2s ease; }
+@keyframes appear { from {opacity:0;transform:translateY(8px)} to {opacity:1;transform:translateY(0)} }
+.back { background:#14221c; border:1px solid #00c98b; color:#00efa5; padding:12px 20px; border-radius:5px; font-size:14px; margin-bottom:18px; }
+.back:active { background:#204532; }
+.detail-number { color:#6b9c88; font-size:12px; letter-spacing:2px; margin-bottom:10px; }
+.detail-image { display:block; width:100%; max-width:430px; aspect-ratio:1/1; object-fit:contain; background:#151d19; border:1px solid #00b982; border-radius:8px; margin:auto; }
+.detail-placeholder { width:100%; max-width:430px; aspect-ratio:1/1; margin:auto; display:flex; justify-content:center; align-items:center; background:#151d19; border:1px solid #00b982; border-radius:8px; color:#507568; font-size:50px; }
+.detail-name { font-size:28px; color:#00efaa; margin:20px 0 12px; overflow-wrap:anywhere; }
+.detail-type { display:inline-block; color:#00efa5; border:1px solid #008c64; background:#10251d; padding:7px 16px; border-radius:20px; font-size:13px; }
+.description-title { margin-top:25px; color:#00e6a0; font-size:13px; letter-spacing:2px; }
+.description { margin-top:10px; background:#141b18; border-left:3px solid #00e6a0; padding:17px; line-height:1.9; color:#d0ddd7; border-radius:3px; font-size:14px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.empty { grid-column:1/-1; text-align:center; color:#71877d; padding:50px 10px; }
+footer { text-align:center; padding:20px; color:#486358; font-size:10px; border-top:1px solid #20352c; }
+</style>
+</head>
+<body>
+<header><h1>MONSTER DATABASE</h1><p>モンスター図鑑</p></header>
+<main id="listPage">
+  <div class="search-area"><input type="search" id="search" placeholder="名前・タイプ・図鑑番号で検索..." oninput="renderList()"></div>
+  <div class="count" id="count"></div>
+  <div class="grid" id="monsterGrid"></div>
+  <footer>MONSTER DATABASE</footer>
+</main>
+<main id="detail">
+  <button class="back" onclick="backToList()">← 図鑑に戻る</button>
+  <div class="detail-number" id="detailNumber"></div>
+  <div id="detailImageArea"></div>
+  <h2 class="detail-name" id="detailName"></h2>
+  <div id="detailType" class="detail-type"></div>
+  <div class="description-title">DESCRIPTION</div>
+  <div class="description" id="detailDescription"></div>
+</main>
+<script>
+const monsters = [
+  {id:1,name:"フカタマ",image:"monster01.png",type:"アニマ科",description:"草原に生息する柔らかい毛で体が覆われたフュラ。脳が進化していて、転がっても平衡感覚が失われることがない。"},
+  {id:116,name:"ミスマッチフュラ",image:"monster05.png",type:"不明",description:"遺伝子が急激な変化に適応できずに崩壊してしまったフュラ。"},
+  {id:117,name:"ゼロキャタピー",image:"monster05.png",type:"ゼロ科",description:"卵から孵化した幼虫。親個体の遺伝子を受け継いでいて、高濃度ゼロエネルギーに対する抗体を持っている。"},
+  {id:118,name:"ゼロピューパ",image:"monster05.png",type:"ゼロ科",description:"ゼロキャタピーが充分に養分を得て休眠形態になった姿。動きは全て生存本能であり、意志はない。"},
+  {id:119,name:"ゼロヴァグロイド",image:"monster05.png",type:"ゼロ科",description:"ゼロピューパから羽化した成体。猛毒（超高濃度ゼロエネルギー）を生成する能力を持っている。"},
+  {id:120,name:"クイーンゼロヴァグロイド",image:"monster05.png",type:"ゼロ科",description:"卵巣が発達したゼロヴァグロイドの特殊メス個体。群を形成した場合に個体が少ない際に一番体の大きいメスが突然変異を起こす。他のゼロヴァグロイドに守られて生活しており、脚が退化している。"},
+  {id:121,name:"ゲンノリシア",image:"monster06.png",type:"ゼロ科",description:"太古の世界を滅ぼしかけた厄災。「暗黒神」と呼ばれた神の一体であり、一定範囲を自身に適した環境に作り出す能力を持っている。"},
+  {id:122,name:"アングクス",image:"monster05.png",type:"ゼロ科",description:"「怒り」をゼロエネルギーで具現化した存在。パイプのような器官から炎を噴射することができる。"},
+  {id:123,name:"サッドクス",image:"monster05.png",type:"ゼロ科",description:"「悲しみ」をゼロエネルギーで具現化した存在。眼から涙のような液体を出し、硬化させて触手のように操る。"},
+  {id:124,name:"テラークス",image:"monster05.png",type:"ゼロ科",description:"「恐怖」をゼロエネルギーで具現化した存在。実体が薄いため、物質をすり抜けて移動することができる。"},
+  {id:125,name:"パルクシアス",image:"monster05.png",type:"不明",description:"ゼロワールド最深部に封印されていた崩壊神。禁忌を犯したことで追放され、追放されたことへの恨みが動力源になっている。意志はなく、機械のような存在。"},
+  {id:126,name:"ジンサカフン",image:"monster05.png",type:"ラース科",description:"「愛」、「誕生」を司る女神。命を生み出す能力を持っている。「フュラの母」と呼ばれている。"},
+  {id:127,name:"クローズノス",image:"monster05.png",type:"ウィドル科",description:"時空を操り管理する神。時を止める能力を持っているが、使われることはあまりない。"},
+  {id:128,name:"ドザギヅグガ",image:"monster05.png",type:"アニマ科",description:"物質を操り星を作る神。破壊の力も十分にあり、神族の中では比較的危険である。"},
+  {id:129,name:"アゼルエイム",image:"monster05.png",type:"不明",description:"全ての神と概念を創り出した最高神の魂の一部が進化したもの。本体はどこにいるのか、現代の科学ではなもわからない。"}
+].sort((a,b)=>a.id-b.id);
+
+function createImage(monster,className){
+  const img=document.createElement("img");
+  img.src=monster.image; img.alt=monster.name||"未登録モンスター"; img.className=className;
+  img.onerror=function(){
+    const p=document.createElement("div");
+    p.className=className==="detail-image"?"detail-placeholder":"image-placeholder";
+    p.textContent="？"; this.replaceWith(p);
+  };
+  return img;
+}
+function renderList(){
+  const grid=document.getElementById("monsterGrid");
+  const search=document.getElementById("search").value.trim().toLowerCase();
+  grid.innerHTML="";
+  const filtered=monsters.filter(m=>m.name.toLowerCase().includes(search)||m.type.toLowerCase().includes(search)||String(m.id).includes(search));
+  document.getElementById("count").textContent="登録モンスター："+filtered.length+"体";
+  if(!filtered.length){grid.innerHTML='<div class="empty">モンスターが見つかりません</div>';return;}
+  filtered.forEach(monster=>{
+    const card=document.createElement("div"); card.className="monster-card";
+    card.appendChild(createImage(monster,""));
+    const name=document.createElement("div"); name.className="monster-name"; name.textContent=monster.name||"？？？？";
+    const number=document.createElement("div"); number.className="monster-number"; number.textContent="NO."+String(monster.id).padStart(3,"0");
+    const type=document.createElement("div"); type.className="type-small"; type.textContent=monster.type;
+    card.append(name,number,type); card.onclick=()=>openDetail(monster.id); grid.appendChild(card);
+  });
+}
+function openDetail(id){
+  const monster=monsters.find(m=>m.id===id); if(!monster)return;
+  document.getElementById("listPage").style.display="none";
+  document.getElementById("detail").style.display="block";
+  document.getElementById("detailNumber").textContent="MONSTER NO."+String(monster.id).padStart(3,"0");
+  const area=document.getElementById("detailImageArea"); area.innerHTML=""; area.appendChild(createImage(monster,"detail-image"));
+  document.getElementById("detailName").textContent=monster.name||"？？？？";
+  document.getElementById("detailType").textContent=monster.type+"タイプ";
+  document.getElementById("detailDescription").textContent=monster.description;
+  window.scrollTo(0,0);
+}
+function backToList(){
+  document.getElementById("detail").style.display="none";
+  document.getElementById("listPage").style.display="block";
+  window.scrollTo(0,0);
+}
+renderList();
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(err=>console.log("Service Worker:",err)));
+}
+</script>
+</body>
+</html>
